@@ -1,0 +1,191 @@
+#!/usr/bin/env python
+
+import pysam
+import argparse
+import csv
+
+parser = argparse.ArgumentParser(prog='ManuelMPRA',description="Parse Errors from MPRA Data\n\n")
+parser.add_argument('--b', help='path to bam file to process', metavar="<input_bam>", required = True, dest = "input_bam")
+parser.add_argument('--r', help='path to reference file', metavar="<reference>", required = True, dest = "reference")
+parser.add_argument('--o', help='outfile to write to', metavar="<outfile>", required = True, dest = "outfile")
+
+args = parser.parse_args()
+
+def open_sequence_file(bam_file):
+
+    is_cram = False
+
+    if bam_file is None:
+        bam_reader = None
+    elif 'bam' in bam_file:
+        bam_reader = pysam.Samfile(bam_file, 'rb')
+    elif 'cram' in bam_file:
+        bam_reader = pysam.Samfile(bam_file, 'rc')
+        is_cram = True
+
+    return {"reader": bam_reader, "is_cram": is_cram}
+
+
+def process_md_tag(aligned_list, start, end, query_sequence):
+
+    missmatches = []
+
+    del_string = None
+    del_start = None
+    del_end = None
+
+    for i in range(start, end):
+
+        ## This checks to see if a del is current running and to print it if we are not in the del anymore
+        if del_string is not None:
+            if aligned_list[i][0] is not None:
+                if del_start == del_end:
+                    mismatch = f"del{del_start+1}{del_string.lower()}"
+                else:
+                    mismatch = f"del{del_start+1}-{del_end+1}{del_string.lower()}"
+
+                del_string = None
+                del_start = None
+                del_end = None
+                missmatches.append(mismatch)
+
+        mismatch = None
+
+        if aligned_list[i][1] is None and aligned_list[i][2] is None:
+            ## Are split reads
+            continue
+
+        elif aligned_list[i][0] is None:
+            ## Are dels - Need to check if a del is current running and append rather than create
+            if del_string is not None:
+                del_string = del_string + aligned_list[i][2]
+                del_end = aligned_list[i][1]
+            else:
+                del_string = aligned_list[i][2]
+                del_start = aligned_list[i][1]
+                del_end = aligned_list[i][1]
+
+        elif aligned_list[i][1] is None:
+            ## Assuming right now are insertions
+            mismatch = f"{aligned_list[i][1]+1}ins{aligned_list[i][2].lower()}"
+        elif aligned_list[i][2].islower():
+            ## This is just regular SNV
+            mismatch = f"{aligned_list[i][2]}{aligned_list[i][1]+1}{query_sequence[aligned_list[i][0]:(aligned_list[i][0] + 1)].lower()}"
+
+        if mismatch is not None:
+            missmatches.append(mismatch)
+
+    return missmatches
+
+
+def process_ins(cigar_tuples, query_sequence, ref_start, is_first):
+
+    current_pos = 0
+    ref_pos = ref_start
+    insertions_tag = []
+    insertions = []
+
+    for c in cigar_tuples:
+
+        if c[0] == 1:
+            ins_seq = query_sequence[current_pos:(current_pos+c[1])]
+            ins = f"{ref_pos}ins{ins_seq.lower()}"
+            if ref_pos <= 10 and is_first:
+                insertions_tag.append(ins)
+            else:
+                insertions.append(ins)
+
+            current_pos+=c[1]
+
+        elif c[0] == 2:
+            ref_pos += c[1]
+
+        elif c[0] == 0:
+            current_pos += c[1]
+            ref_pos += c[1]
+
+        else:
+            current_pos += c[1]
+#    print(insertions)
+    return {'tag': insertions_tag,'all': insertions}
+
+def fetch_reads(bam_reader, outfile_path, reference_name):
+
+    for s in bam_reader.fetch(reference_name):
+
+        ## First get the tag sequence
+        element = bam_reader.getrname(s.tid)
+        element_split = element.split(";")
+        tag_sequence = element_split[4]
+        read_name = s.query_name
+
+        ## Don't want secondary or supplemental crap
+        if s.is_supplementary is False and s.is_secondary is False and s.mapping_quality >= 20:
+
+            ## Dereference various things about the read itself
+            cigar = s.cigartuples
+            mdtag = s.get_tag("MD")
+            aligned = s.get_aligned_pairs(with_seq=True)
+            ref = s.get_reference_positions(full_length=False)
+            aligned_sequence = s.query_alignment_sequence
+
+            tag_matches = None
+            tag_missmatches = []
+            all_missmatches = []
+
+            ## First read in the pair should have the appropriate tag, we do second later to just check for mismatches
+            #if s.is_read1 is True:
+
+            ins = process_ins(cigar, aligned_sequence, s.reference_start, s.is_read1)
+
+            if s.get_overlap(0,11):
+                    ## Simplest case is that we get a perfect overlap
+                 read_tag_sequence = aligned_sequence[0:11]
+                 if tag_sequence == read_tag_sequence:
+                     tag_matches = True
+                 else:
+                     tag_matches = False
+                     tag_missmatches = process_md_tag(aligned, 0, 11, aligned_sequence)
+
+                    ## Now evaluate non-tag bit
+                     all_missmatches = process_md_tag(aligned, 11, len(aligned), aligned_sequence)
+
+                     all_missmatches = all_missmatches + ins['all']
+                     tag_missmatches = tag_missmatches + ins['tag']
+
+            else:
+                all_missmatches = process_md_tag(aligned, 0, len(aligned), aligned_sequence)
+                all_missmatches = all_missmatches + ins['all'] 
+
+#            else:
+                all_missmatches = process_md_tag(aligned, 0, len(aligned), aligned_sequence)
+                ins = process_ins(cigar, aligned_sequence, s.reference_start, s.is_read1)
+                all_missmatches = all_missmatches + ins['all']
+
+            line_to_write = dict()
+            line_to_write["read_name"] = read_name
+            line_to_write["element"] = ":".join(element_split[0:3])
+            line_to_write["pair"] = ("second","first")[s.is_read1]
+            line_to_write["alignment_start"] = s.reference_start
+            line_to_write["alignment_end"] = s.reference_end
+            line_to_write["tag"] = tag_sequence
+            line_to_write["tag_matches"] = tag_matches
+            line_to_write["missmatched_tag_bases"] = ";".join(tag_missmatches)
+            line_to_write["missmatched_read_bases"] = ";".join(all_missmatches)
+
+            outfile.writerow(line_to_write)
+
+
+fai_file = csv.DictReader(open(args.reference + ".fai"), delimiter="\t", fieldnames=("name","length","offset","numlines","linewidth"))
+
+opener = open_sequence_file(args.input_bam)
+infile = opener["reader"]
+
+field_names = ("read_name","element","pair","alignment_start","alignment_end","tag","tag_matches","missmatched_tag_bases","missmatched_read_bases")
+outfile = csv.DictWriter(open(args.outfile, "w"), fieldnames=field_names, delimiter="\t", lineterminator="\n")
+outfile.writeheader()
+
+for sequence in fai_file:
+
+    seq_name = sequence["name"]
+    fetch_reads(infile, outfile, seq_name)

@@ -3,7 +3,18 @@
 
 # The PE150 reads are in the folder: 
 
-/lustre/scratch123/hgi/mdt1/teams/soranzo/projects/NEW_MPRA/240/
+/nfs/team151_data03/MPRA_Programmed/INITIAL_library_sequencing/
+
+# The global file reads are the result of cats:
+
+cat INITIAL_library_PrepShendure_L001_ds.ef7bc87c2fd84cd0922f09f950a2996a/INITIAL-library-PrepShendure_S2_L001_R1_001.fastq.gz INITIAL_library_PrepShendure_L001_ds.72543c18e4f44ba3819030ac539d5d78/INITIAL-library-PrepShendure_S2_L001_R1_001.fastq.gz INITIAL_library_2STEP_Prep_L001_ds.8584a561088340828a4c86\
+2eabcbb725/INITIAL-library-2STEP-Prep_S1_L001_R1_001.fastq.gz INITIAL_library_2STEP_Prep_L001_ds.9a3e73d96cc8460f8bec4d281833fed7/INITIAL-library-2STEP-Prep_S1_L001_R1_001.fastq.gz > global_R1.fastq.gz
+
+
+cat INITIAL_library_PrepShendure_L001_ds.ef7bc87c2fd84cd0922f09f950a2996a/INITIAL-library-PrepShendure_S2_L001_R2_001.fastq.gz INITIAL_library_PrepShendure_L001_ds.72543c18e4f44ba3819030ac539d5d78/INITIAL-library-PrepShendure_S2_L001_R2_001.fastq.gz INITIAL_library_2STEP_Prep_L001_ds.8584a561088340828a4c86\
+ 2eabcbb725/INITIAL-library-2STEP-Prep_S1_L001_R2_001.fastq.gz INITIAL_library_2STEP_Prep_L001_ds.9a3e73d96cc8460f8bec4d281833fed7/INITIAL-library-2STEP-Prep_S1_L001_R2_001.fastq.gz > global_R2.fastq.gz
+
+
 
 # The reference for the PE150 alignment is: /lustre/scratch123/hgi/mdt1/teams/soranzo/projects/NEW_MPRA/reference_files/Library_TRIMMED_15bp_RMV_M.fasta
 
