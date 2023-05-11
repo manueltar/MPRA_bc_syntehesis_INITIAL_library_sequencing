@@ -3,7 +3,9 @@
 
 # The PE150 reads are in the folder: 
 
-/nfs/team151_data03/MPRA_Programmed/INITIAL_library_sequencing/
+/nfs/team151_data03/MPRA_Programmed/INITIAL_library_sequencing/ former 240
+
+# The manifest file is: Manifest_19_11_2019.csv
 
 # The global file reads are the result of cats:
 
@@ -78,7 +80,9 @@ bash ~/Scripts/Wraper_scripts/255_BWA_align_NEW_MPRA_2.sh /lustre/scratch123/hgi
 
 ########################### First assay of the library FINAL in the plasmids
 
-# The PE 25 reads are in /lustre/scratch123/hgi/mdt1/teams/soranzo/projects/NEW_MPRA/236/
+# The PE 25 reads are in /nfs/team151_data03/MPRA_Programmed/FINAL_library_sequencing/ former 236
+
+# The manifest file is Manifest_5_11_2019.csv
 
 NEW_MPRA/246$ scp -r /lustre/scratch117/sciops/team117/npg/srl/mt9/191210_MS2_MiSeq_walk-up_246_A_MS8539685-050V2/* ./
 
