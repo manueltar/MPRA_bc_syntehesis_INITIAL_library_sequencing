@@ -1,0 +1,20 @@
+[Header],,,
+Investigator Name,Nicole Soranzo,,
+Project Name,MPRA,,
+Experiment Name,MiSeq walk-up 240,,
+Date,05/11/2019,,
+Workflow,GenerateFASTQ,,
+Chemistry,Default,,
+,,,
+[Reads],,,
+135,,,
+135,,,
+,,,
+[Settings],dark_15_manuel,,
+,,,
+[Mainifest],,,
+,,,
+[Data],,,
+Sample_ID,Sample_Name,index,index2
+INITIAL_library_2STEP_Prep,,No index1,ACGTAGACCA
+INITIAL_library_PrepShendure,,No index1,AGCGGCGACC
